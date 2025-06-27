@@ -13,7 +13,6 @@ use typst_pdf_api::{TypstWrapperWorld, templates::german_invoice::GERMAN_INVOICE
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_thread_names(true)
         .with_max_level(tracing::Level::DEBUG)
         .init();
     // build our application with a single route
