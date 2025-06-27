@@ -12,6 +12,8 @@ use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst_kit::fonts::{FontSearcher, FontSlot};
 
+pub mod templates;
+
 /// Main interface that determines the environment for Typst.
 pub struct TypstWrapperWorld {
     /// Root path to which files will be resolved.

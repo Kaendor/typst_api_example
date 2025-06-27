@@ -1,22 +1,12 @@
 use axum::{
     Json, Router,
-    body::Body,
     http::{HeaderMap, header},
     response::IntoResponse,
     routing::get,
 };
-use typst::{
-    Library, World,
-    diag::{FileResult, Warned},
-    foundations::{Bytes, Datetime},
-    layout::PagedDocument,
-    pdf,
-    syntax::{FileId, Source},
-    text::{Font, FontBook},
-    utils::LazyHash,
-};
+use typst::{diag::Warned, layout::PagedDocument};
 use typst_pdf::PdfOptions;
-use typst_pdf_api::TypstWrapperWorld;
+use typst_pdf_api::{TypstWrapperWorld, templates::german_invoice::GERMAN_INVOICE_TEMPLATE};
 
 #[tokio::main]
 async fn main() {
@@ -33,12 +23,13 @@ async fn main() {
 }
 
 // #[axum::debug_handler]
-async fn template_to_pdf(Json(payload): Json<CreatePDF>) -> impl IntoResponse {
+async fn template_to_pdf(Json(_payload): Json<CreatePDF>) -> impl IntoResponse {
     // This is where you would implement the logic to convert a template to PDF.
     // For now, we return a simple string.
     let content = "=Hello, World!";
+    let german_template = GERMAN_INVOICE_TEMPLATE;
 
-    let world = TypstWrapperWorld::new("./examples".to_owned(), content.to_owned());
+    let world = TypstWrapperWorld::new("./examples".to_owned(), german_template.to_string());
 
     let Warned {
         output,
