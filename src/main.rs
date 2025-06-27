@@ -59,6 +59,7 @@ async fn template_to_pdf(Json(_payload): Json<CreatePDF>) -> impl IntoResponse {
             .expect("filename header parse"),
     );
 
+    info!("PDF Served");
     (headers, pdf_buf)
 }
 
