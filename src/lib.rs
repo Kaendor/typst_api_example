@@ -3,6 +3,7 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
+use tracing::instrument;
 use typst::Library;
 use typst::diag::{FileError, FileResult, PackageError, PackageResult, eco_format};
 use typst::foundations::{Bytes, Datetime};
@@ -120,6 +121,7 @@ impl TypstWrapperWorld {
     }
 
     /// Downloads the package and returns the system path of the unpacked package.
+    #[instrument(skip(self, package))]
     fn download_package(&self, package: &PackageSpec) -> PackageResult<PathBuf> {
         let package_subdir = format!("{}/{}/{}", package.namespace, package.name, package.version);
         let path = self.cache_directory.join(package_subdir);
