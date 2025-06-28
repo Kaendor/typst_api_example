@@ -3094,6 +3094,7 @@ dependencies = [
  "axum",
  "serde",
  "tar",
+ "thiserror 2.0.12",
  "time",
  "tokio",
  "tracing",
