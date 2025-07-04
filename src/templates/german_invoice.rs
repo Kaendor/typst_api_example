@@ -14,7 +14,7 @@ pub struct GermanTemplateData {
 }
 
 impl GermanTemplateData {
-    pub fn into_pdf_params(self) -> String {
+    pub fn into_typst_template(self) -> String {
         let GermanTemplateData {
             invoice_number,
             date,
@@ -40,7 +40,10 @@ impl GermanTemplateData {
 
         format!(
             r#"
-  {invoice_number},
+#import "@preview/classy-german-invoice:0.3.1": invoice
+
+#show: invoice(
+  "{invoice_number}",
   // Invoice date
   {date},
   // Items
@@ -56,6 +59,7 @@ impl GermanTemplateData {
   // Umsatzsteuersatz (VAT)
   vat: 0.19,
   kleinunternehmer: true,
+  )
         "#
         )
     }
@@ -188,4 +192,70 @@ pub struct Address {
     pub country: String,
     pub tax_nb: String,
     pub signature: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::templates::template_to_pdf;
+
+    use super::*;
+
+    impl GermanTemplateData {
+        pub fn fake() -> Self {
+            GermanTemplateData {
+                invoice_number: "12345".to_string(),
+                date: "2023-10-01".to_string(),
+                items: vec![
+                    InvoiceItem {
+                        description: "Item 1".to_string(),
+                        price: 100.0,
+                    },
+                    InvoiceItem {
+                        description: "Item 2".to_string(),
+                        price: 200.0,
+                    },
+                ],
+                author: Author {
+                    name: "John Doe".to_string(),
+                    address: Address {
+                        street: "123 Main St".to_string(),
+                        city: "Berlin".to_string(),
+                        zip_code: "10115".to_string(),
+                        country: "Germany".to_string(),
+                        tax_nb: "DE123456789".to_string(),
+                        signature: None,
+                    },
+                    email: "toto".to_string(),
+                },
+                recipient: Client {
+                    name: "Jane Smith".to_string(),
+                    address: Address {
+                        street: "456 Elm St".to_string(),
+                        city: "Munich".to_string(),
+                        zip_code: "80331".to_string(),
+                        country: "Germany".to_string(),
+                        tax_nb: "DE987654321".to_string(),
+                        signature: None,
+                    },
+                },
+                bank_account: BankAccount {
+                    name: "John Doe".to_string(),
+                    iban: "DE89370400440532013000".to_string(),
+                    bic: "COBADEFFXXX".to_string(),
+                    bank_name: "Commerzbank".to_string(),
+                    gender: "Yes".to_string(),
+                },
+                vat_rate: 19.0,
+                is_micro_business: true,
+            }
+        }
+    }
+
+    #[test]
+    fn compile_german_data_into_german_invoice_pdf() {
+        let data = GermanTemplateData::fake();
+        let template = data.into_typst_template();
+        let _pdf = template_to_pdf(template).expect("Failed to compile template");
+    }
 }
