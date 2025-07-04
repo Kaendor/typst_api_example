@@ -13,6 +13,7 @@ use crate::TypstWrapperWorld;
 
 pub mod german_invoice;
 
+/// Custom error type for the application
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("Failed to compile template")]
@@ -23,10 +24,9 @@ pub enum AppError {
     InternalServerError,
 }
 
+/// Converts a Typst template string to a PDF byte buffer.
 #[instrument]
 pub fn template_to_pdf(content: String) -> Result<Vec<u8>, AppError> {
-    // This function is a placeholder for the actual implementation.
-    // It should return the path or content of the PDF generated from the template.
     let world = TypstWrapperWorld::new("./examples".to_owned(), content);
 
     let Warned {
@@ -42,6 +42,7 @@ pub fn template_to_pdf(content: String) -> Result<Vec<u8>, AppError> {
     Ok(pdf_buf)
 }
 
+//FIXME: Add From AppError for ErrorResponse instead
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         // How we want errors responses to be serialized
