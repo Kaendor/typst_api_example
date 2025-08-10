@@ -19,3 +19,10 @@ typst-kit = "0.13.1"
 typst-pdf = "0.13.1"
 ureq = "3.0.12"
 zune-inflate = "0.2.54"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "pdf_generation"
+harness = false

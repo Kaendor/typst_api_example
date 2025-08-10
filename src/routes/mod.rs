@@ -1,19 +1,14 @@
 use axum::{
     Json,
-    extract::State,
     http::{HeaderMap, header},
     response::{IntoResponse, Result},
 };
 use tracing::{info, instrument};
-use typst_pdf_api::{
-    World,
-    templates::{AppError, german_invoice::GERMAN_INVOICE_TEMPLATE},
-};
+use typst_pdf_api::templates::{AppError, german_invoice::GERMAN_INVOICE_TEMPLATE};
 
 // #[axum::debug_handler]
 #[instrument]
 pub async fn pdf_generation_controller(
-    State(world): State<World>,
     Json(_payload): Json<CreatePDF>,
 ) -> Result<impl IntoResponse> {
     info!("Serving PDF");
@@ -21,7 +16,7 @@ pub async fn pdf_generation_controller(
     // For now, we return a simple string.
     let german_template = GERMAN_INVOICE_TEMPLATE;
 
-    let pdf_buf = typst_pdf_api::templates::template_to_pdf(world, german_template.to_string())?;
+    let pdf_buf = typst_pdf_api::templates::template_to_pdf(german_template.to_string())?;
 
     let mut headers = HeaderMap::new();
     headers.insert(

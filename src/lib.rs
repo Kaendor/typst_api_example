@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use std::sync::{Arc, Mutex};
 
 use tracing::instrument;
@@ -15,17 +16,60 @@ use typst_kit::fonts::{FontSearcher, FontSlot};
 
 pub mod templates;
 
-#[derive(Clone, Debug)]
-pub struct World(Arc<Mutex<TypstWrapperWorld>>);
+/// This is the interface we have to implement such that `typst` can compile it.
+///
+/// I have tried to keep it as minimal as possible
+fn retry<T, E>(mut f: impl FnMut() -> Result<T, E>) -> Result<T, E> {
+    if let Ok(ok) = f() { Ok(ok) } else { f() }
+}
 
-impl World {
-    pub fn new(root: String) -> Self {
-        Self(Arc::new(Mutex::new(TypstWrapperWorld::new(root))))
+fn http_successful(status: u16) -> bool {
+    // 2XX
+    status / 100 == 2
+}
+
+/// Cached template that holds expensive-to-initialize resources like fonts and library.
+/// This allows us to reuse font search results across requests.
+struct CachedWorldTemplate {
+    library: LazyHash<Library>,
+    book: LazyHash<FontBook>,
+    fonts: Arc<Vec<FontSlot>>,
+    root: PathBuf,
+    cache_directory: PathBuf,
+    http: ureq::Agent,
+}
+
+impl CachedWorldTemplate {
+    fn new() -> Self {
+        let fonts = FontSearcher::new().include_system_fonts(true).search();
+        Self {
+            library: LazyHash::new(Library::default()),
+            book: LazyHash::new(fonts.book),
+            fonts: Arc::new(fonts.fonts),
+            root: PathBuf::from("./examples"),
+            cache_directory: std::env::var_os("CACHE_DIRECTORY")
+                .map(|os_path| os_path.into())
+                .unwrap_or(std::env::temp_dir()),
+            http: ureq::agent(),
+        }
+    }
+
+    fn create_world_with_source(&self, source: String) -> TypstWrapperWorld {
+        TypstWrapperWorld {
+            root: self.root.clone(),
+            source: Source::detached(source),
+            library: self.library.clone(),
+            book: self.book.clone(),
+            fonts: Arc::clone(&self.fonts),
+            files: Arc::new(Mutex::new(HashMap::new())),
+            cache_directory: self.cache_directory.clone(),
+            http: self.http.clone(),
+            time: time::OffsetDateTime::now_utc(),
+        }
     }
 }
 
 /// Main interface that determines the environment for Typst.
-#[derive(Debug)]
 pub struct TypstWrapperWorld {
     /// Root path to which files will be resolved.
     root: PathBuf,
@@ -40,7 +84,7 @@ pub struct TypstWrapperWorld {
     book: LazyHash<FontBook>,
 
     /// Metadata about all known fonts.
-    fonts: Vec<FontSlot>,
+    fonts: Arc<Vec<FontSlot>>,
 
     /// Map of all known files.
     files: Arc<Mutex<HashMap<FileId, FileEntry>>>,
@@ -56,11 +100,7 @@ pub struct TypstWrapperWorld {
 }
 
 impl TypstWrapperWorld {
-    pub fn with_source(&mut self, source: String) {
-        self.source = Source::detached(source);
-    }
-
-    pub fn new(root: String) -> Self {
+    pub fn new(root: String, source: String) -> Self {
         let root = PathBuf::from(root);
         let fonts = FontSearcher::new().include_system_fonts(true).search();
 
@@ -68,9 +108,8 @@ impl TypstWrapperWorld {
             library: LazyHash::new(Library::default()),
             book: LazyHash::new(fonts.book),
             root,
-            fonts: fonts.fonts,
-            // give an empty source, to initialize the world
-            source: Source::detached(""),
+            fonts: Arc::new(fonts.fonts),
+            source: Source::detached(source),
             time: time::OffsetDateTime::now_utc(),
             cache_directory: std::env::var_os("CACHE_DIRECTORY")
                 .map(|os_path| os_path.into())
@@ -78,6 +117,19 @@ impl TypstWrapperWorld {
             http: ureq::agent(),
             files: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    /// Creates a new world with cached font/library data, updating only the source content.
+    /// This avoids expensive font system search on every request.
+    pub fn with_source(source: String) -> Self {
+        // Get or initialize the cached world template
+        static CACHED_WORLD_TEMPLATE: OnceLock<CachedWorldTemplate> = OnceLock::new();
+        let template = CACHED_WORLD_TEMPLATE.get_or_init(|| {
+            tracing::debug!("Initializing cached TypstWrapperWorld template");
+            CachedWorldTemplate::new()
+        });
+
+        template.create_world_with_source(source)
     }
 }
 
@@ -235,13 +287,4 @@ impl typst::World for TypstWrapperWorld {
         let time = self.time.checked_to_offset(offset)?;
         Some(Datetime::Date(time.date()))
     }
-}
-
-fn retry<T, E>(mut f: impl FnMut() -> Result<T, E>) -> Result<T, E> {
-    if let Ok(ok) = f() { Ok(ok) } else { f() }
-}
-
-fn http_successful(status: u16) -> bool {
-    // 2XX
-    status / 100 == 2
 }

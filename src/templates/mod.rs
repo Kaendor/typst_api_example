@@ -9,36 +9,52 @@ use tracing::instrument;
 use typst::{diag::Warned, layout::PagedDocument};
 use typst_pdf::PdfOptions;
 
-use crate::World;
+use crate::TypstWrapperWorld;
 
 pub mod german_invoice;
 
 /// Custom error type for the application
 #[derive(Debug, Error)]
 pub enum AppError {
-    #[error("Failed to compile template")]
-    CompilationError,
-    #[error("PDF generation error")]
-    PdfGenerationError,
+    #[error("Failed to compile template: {0}")]
+    CompilationError(String),
+    #[error("PDF generation error: {0}")]
+    PdfGenerationError(String),
     #[error("Internal server error")]
     InternalServerError,
 }
 
 /// Converts a Typst template string to a PDF byte buffer.
 #[instrument]
-pub fn template_to_pdf(world: World, source: String) -> Result<Vec<u8>, AppError> {
-    let mut world = world.0.lock().map_err(|_| AppError::InternalServerError)?;
-    world.with_source(source);
+pub fn template_to_pdf(content: String) -> Result<Vec<u8>, AppError> {
+    tracing::debug!(
+        "Template content to compile:
+{}",
+        content
+    );
+
+    let world = TypstWrapperWorld::with_source(content);
 
     let Warned {
         output,
         warnings: _warnings,
-    } = typst::compile::<PagedDocument>(&*world);
+    } = typst::compile::<PagedDocument>(&world);
 
-    let document = output.map_err(|_| AppError::CompilationError)?;
+    let document = output.map_err(|errors| {
+        let error_msg = errors
+            .iter()
+            .map(|e| format!("{:?}", e))
+            .collect::<Vec<_>>()
+            .join("; ");
+        tracing::error!("Typst compilation errors: {}", error_msg);
+        AppError::CompilationError(error_msg)
+    })?;
 
-    let pdf_buf = typst_pdf::pdf(&document, &PdfOptions::default())
-        .map_err(|_| AppError::PdfGenerationError)?;
+    let pdf_buf = typst_pdf::pdf(&document, &PdfOptions::default()).map_err(|e| {
+        let error_msg = format!("{:?}", e);
+        tracing::error!("PDF generation error: {}", error_msg);
+        AppError::PdfGenerationError(error_msg)
+    })?;
 
     Ok(pdf_buf)
 }
@@ -53,13 +69,13 @@ impl IntoResponse for AppError {
         }
 
         let (status, message) = match self {
-            AppError::CompilationError => (
+            AppError::CompilationError(error_details) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Oopsie doopsie".to_owned(),
+                format!("Template compilation failed: {}", error_details),
             ),
-            AppError::PdfGenerationError => (
+            AppError::PdfGenerationError(error_details) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Something went wrong".to_owned(),
+                format!("PDF generation failed: {}", error_details),
             ),
             AppError::InternalServerError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -88,18 +104,18 @@ where
 
 #[cfg(test)]
 mod tests {
-    // #[test]
-    // fn pdf_generation_test() {
-    //     let pdf_buf = super::template_to_pdf("Hello, Typst!".to_string()).expect("pdf gen");
-    //
-    //     assert!(!pdf_buf.is_empty(), "PDF buffer should not be empty");
-    //     assert!(
-    //         pdf_buf.starts_with(b"%PDF-"),
-    //         "PDF buffer should start with %PDF-"
-    //     );
-    //     assert!(
-    //         pdf_buf.ends_with(b"%%EOF"),
-    //         "PDF buffer should end with %%EOF"
-    //     );
-    // }
+    #[test]
+    fn pdf_generation_test() {
+        let pdf_buf = super::template_to_pdf("Hello, Typst!".to_string()).expect("pdf gen");
+
+        assert!(!pdf_buf.is_empty(), "PDF buffer should not be empty");
+        assert!(
+            pdf_buf.starts_with(b"%PDF-"),
+            "PDF buffer should start with %PDF-"
+        );
+        assert!(
+            pdf_buf.ends_with(b"%%EOF"),
+            "PDF buffer should end with %%EOF"
+        );
+    }
 }

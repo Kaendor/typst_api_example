@@ -22,8 +22,8 @@ impl GermanTemplateData {
             author,
             recipient,
             bank_account,
-            vat_rate: _,
-            is_micro_business: _,
+            vat_rate: _vat_rate,
+            is_micro_business: _is_micro_business,
         } = self;
 
         let items_str: String = items
@@ -38,30 +38,49 @@ impl GermanTemplateData {
 
         let bank_account_str = bank_account.into_pdf_params();
 
+        let date_str = Self::date_to_typst_datetime(&date);
+
         format!(
             r#"
 #import "@preview/classy-german-invoice:0.3.1": invoice
 
 #show: invoice(
-  "{invoice_number}",
+  "{}",
   // Invoice date
-  {date},
+  {},
   // Items
   (
-    {items_str}
+    {}
   ),
   // Author
-    {author_str},
+    {},
   // Recipient
-    {client_str},
+    {},
   // Bank account
-    {bank_account_str},
+    {},
   // Umsatzsteuersatz (VAT)
   vat: 0.19,
   kleinunternehmer: true,
   )
-        "#
+        "#,
+            invoice_number, date_str, items_str, author_str, client_str, bank_account_str
         )
+    }
+
+    /// Converts a YYYY-MM-DD date string to Typst datetime format
+    fn date_to_typst_datetime(date_str: &str) -> String {
+        // Parse YYYY-MM-DD format
+        let parts: Vec<&str> = date_str.split('-').collect();
+        if parts.len() != 3 {
+            // Fallback to a default date if parsing fails
+            return "datetime(year: 2023, month: 1, day: 1)".to_string();
+        }
+
+        let year = parts[0].parse::<u32>().unwrap_or(2023);
+        let month = parts[1].parse::<u32>().unwrap_or(1);
+        let day = parts[2].parse::<u32>().unwrap_or(1);
+
+        format!("datetime(year: {}, month: {}, day: {})", year, month, day)
     }
 }
 
@@ -80,7 +99,7 @@ impl BankAccount {
             bic,
             bank_name,
             name,
-            gender: _,
+            gender: _gender,
         } = self;
 
         format!(
@@ -255,8 +274,7 @@ mod tests {
     #[test]
     fn compile_german_data_into_german_invoice_pdf() {
         let data = GermanTemplateData::fake();
-        let world = crate::World::new("./examples".to_string());
         let template = data.into_typst_template();
-        let _pdf = template_to_pdf(world, template).expect("Failed to compile template");
+        let _pdf = template_to_pdf(template).expect("Failed to compile template");
     }
 }
