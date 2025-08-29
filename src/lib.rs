@@ -16,6 +16,7 @@ use typst_kit::fonts::{FontSearcher, FontSlot};
 pub mod templates;
 
 /// Main interface that determines the environment for Typst.
+#[derive(Debug)]
 pub struct TypstWrapperWorld {
     /// Root path to which files will be resolved.
     root: PathBuf,
@@ -46,7 +47,12 @@ pub struct TypstWrapperWorld {
 }
 
 impl TypstWrapperWorld {
-    pub fn new(root: String, source: String) -> Self {
+    pub fn with_source(mut self, source: String) -> Self {
+        self.source = Source::detached(source);
+        self
+    }
+
+    pub fn new(root: String) -> Self {
         let root = PathBuf::from(root);
         let fonts = FontSearcher::new().include_system_fonts(true).search();
 
@@ -55,7 +61,8 @@ impl TypstWrapperWorld {
             book: LazyHash::new(fonts.book),
             root,
             fonts: fonts.fonts,
-            source: Source::detached(source),
+            // give an empty source, to initialize the world
+            source: Source::detached(""),
             time: time::OffsetDateTime::now_utc(),
             cache_directory: std::env::var_os("CACHE_DIRECTORY")
                 .map(|os_path| os_path.into())

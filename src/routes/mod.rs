@@ -1,14 +1,19 @@
 use axum::{
     Json,
+    extract::State,
     http::{HeaderMap, header},
     response::{IntoResponse, Result},
 };
 use tracing::{info, instrument};
-use typst_pdf_api::templates::{AppError, german_invoice::GERMAN_INVOICE_TEMPLATE};
+use typst_pdf_api::{
+    TypstWrapperWorld,
+    templates::{AppError, german_invoice::GERMAN_INVOICE_TEMPLATE},
+};
 
 // #[axum::debug_handler]
 #[instrument]
 pub async fn pdf_generation_controller(
+    State(world): State<TypstWrapperWorld>,
     Json(_payload): Json<CreatePDF>,
 ) -> Result<impl IntoResponse> {
     info!("Serving PDF");

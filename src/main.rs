@@ -5,6 +5,7 @@ use tracing_subscriber;
 mod routes;
 
 use routes::pdf_generation_controller;
+use typst_pdf_api::TypstWrapperWorld;
 
 #[tokio::main]
 async fn main() {
@@ -14,7 +15,11 @@ async fn main() {
         .init();
 
     // build our application with a single route
-    let app = Router::new().route("/", get(pdf_generation_controller));
+    let world = TypstWrapperWorld::new("examples".to_owned());
+    // FIXME: put the world in an Arc
+    let app = Router::new()
+        .route("/", get(pdf_generation_controller))
+        .with_state(world);
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
