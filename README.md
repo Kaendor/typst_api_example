@@ -7,3 +7,7 @@
 ## HTTP Test
 
 GET request on `/`
+
+## TODOs
+
+- [ ] Add benchmarking with criterion and pprof

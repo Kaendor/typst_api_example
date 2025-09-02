@@ -6,14 +6,14 @@ use axum::{
 };
 use tracing::{info, instrument};
 use typst_pdf_api::{
-    TypstWrapperWorld,
+    World,
     templates::{AppError, german_invoice::GERMAN_INVOICE_TEMPLATE},
 };
 
 // #[axum::debug_handler]
 #[instrument]
 pub async fn pdf_generation_controller(
-    State(world): State<TypstWrapperWorld>,
+    State(world): State<World>,
     Json(_payload): Json<CreatePDF>,
 ) -> Result<impl IntoResponse> {
     info!("Serving PDF");
@@ -21,7 +21,7 @@ pub async fn pdf_generation_controller(
     // For now, we return a simple string.
     let german_template = GERMAN_INVOICE_TEMPLATE;
 
-    let pdf_buf = typst_pdf_api::templates::template_to_pdf(german_template.to_string())?;
+    let pdf_buf = typst_pdf_api::templates::template_to_pdf(world, german_template.to_string())?;
 
     let mut headers = HeaderMap::new();
     headers.insert(

@@ -22,8 +22,8 @@ impl GermanTemplateData {
             author,
             recipient,
             bank_account,
-            vat_rate,
-            is_micro_business,
+            vat_rate: _,
+            is_micro_business: _,
         } = self;
 
         let items_str: String = items
@@ -80,7 +80,7 @@ impl BankAccount {
             bic,
             bank_name,
             name,
-            gender,
+            gender: _,
         } = self;
 
         format!(
@@ -255,7 +255,8 @@ mod tests {
     #[test]
     fn compile_german_data_into_german_invoice_pdf() {
         let data = GermanTemplateData::fake();
+        let world = crate::World::new("./examples".to_string());
         let template = data.into_typst_template();
-        let _pdf = template_to_pdf(template).expect("Failed to compile template");
+        let _pdf = template_to_pdf(world, template).expect("Failed to compile template");
     }
 }

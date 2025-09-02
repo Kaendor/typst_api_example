@@ -9,7 +9,7 @@ use tracing::instrument;
 use typst::{diag::Warned, layout::PagedDocument};
 use typst_pdf::PdfOptions;
 
-use crate::TypstWrapperWorld;
+use crate::World;
 
 pub mod german_invoice;
 
@@ -26,13 +26,14 @@ pub enum AppError {
 
 /// Converts a Typst template string to a PDF byte buffer.
 #[instrument]
-pub fn template_to_pdf(world: TypstWrapperWorld, source: String) -> Result<Vec<u8>, AppError> {
-    let world = world.with_source(source);
+pub fn template_to_pdf(world: World, source: String) -> Result<Vec<u8>, AppError> {
+    let mut world = world.0.lock().map_err(|_| AppError::InternalServerError)?;
+    world.with_source(source);
 
     let Warned {
         output,
         warnings: _warnings,
-    } = typst::compile::<PagedDocument>(&world);
+    } = typst::compile::<PagedDocument>(&*world);
 
     let document = output.map_err(|_| AppError::CompilationError)?;
 

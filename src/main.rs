@@ -1,11 +1,10 @@
 use axum::{Router, routing::get};
 use tracing::info;
-use tracing_subscriber;
 
 mod routes;
 
 use routes::pdf_generation_controller;
-use typst_pdf_api::TypstWrapperWorld;
+use typst_pdf_api::World;
 
 #[tokio::main]
 async fn main() {
@@ -15,8 +14,9 @@ async fn main() {
         .init();
 
     // build our application with a single route
-    let world = TypstWrapperWorld::new("examples".to_owned());
-    // FIXME: put the world in an Arc
+    // let world = Arc::new(TypstWrapperWorld::new("examples".to_owned()));
+    let world = World::new("examples".to_string());
+
     let app = Router::new()
         .route("/", get(pdf_generation_controller))
         .with_state(world);

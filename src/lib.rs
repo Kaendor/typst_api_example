@@ -15,6 +15,15 @@ use typst_kit::fonts::{FontSearcher, FontSlot};
 
 pub mod templates;
 
+#[derive(Clone, Debug)]
+pub struct World(Arc<Mutex<TypstWrapperWorld>>);
+
+impl World {
+    pub fn new(root: String) -> Self {
+        Self(Arc::new(Mutex::new(TypstWrapperWorld::new(root))))
+    }
+}
+
 /// Main interface that determines the environment for Typst.
 #[derive(Debug)]
 pub struct TypstWrapperWorld {
@@ -47,9 +56,8 @@ pub struct TypstWrapperWorld {
 }
 
 impl TypstWrapperWorld {
-    pub fn with_source(mut self, source: String) -> Self {
+    pub fn with_source(&mut self, source: String) {
         self.source = Source::detached(source);
-        self
     }
 
     pub fn new(root: String) -> Self {
